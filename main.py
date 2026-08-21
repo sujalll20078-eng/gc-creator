@@ -4,7 +4,6 @@ import time
 import json
 import urllib.parse
 import logging
-import concurrent.futures
 import gc
 from flask import Flask, request, render_template, Response
 
@@ -17,10 +16,10 @@ except ImportError:
 
 # ─── CONFIG ──────────────────────────────────────────────
 SESSION_ID = os.environ.get("SESSION_ID", "")
-DEFAULT_MESSAGE = "𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙ𝐇ɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ"
+DEFAULT_MESSAGE = "𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙʜɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ"
 DEFAULT_DELAY = 4
 MIN_DELAY = 2
-API_TIMEOUT = 10          # reduced from 15
+API_TIMEOUT = 10          # seconds for instagrapi client timeout
 THREAD_SCAN_LIMIT = 5     # reduced from 30
 
 # ─── LOGGING ─────────────────────────────────────────────
@@ -32,19 +31,12 @@ app = Flask(__name__)
 
 # ─── HELPERS ─────────────────────────────────────────────
 def decode_session(session):
-    if not session: return session
-    try: return urllib.parse.unquote(session)
-    except: return session
-
-def with_timeout(func, timeout=API_TIMEOUT, default=None, *args, **kwargs):
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(func, *args, **kwargs)
-        try:
-            return future.result(timeout=timeout)
-        except concurrent.futures.TimeoutError:
-            return default
-        except Exception:
-            return default
+    if not session:
+        return session
+    try:
+        return urllib.parse.unquote(session)
+    except:
+        return session
 
 def sse_event(event_type, message):
     timestamp = time.strftime("%H:%M:%S")
@@ -56,7 +48,8 @@ def login_session(session_id):
     session_id = decode_session(session_id)
     try:
         cl = Client()
-        # login_by_sessionid me timeout nahi daal rahe
+        # Set global timeout for all API calls (prevents hanging)
+        cl.timeout = API_TIMEOUT
         cl.login_by_sessionid(session_id)
         return cl
     except Exception as e:
@@ -72,7 +65,7 @@ def fetch_thread_id_for_users(cl, user_ids):
     # ─── Method 1: Latest thread (amount=1) ──────────
     try:
         logger.info("🔍 Checking latest thread...")
-        threads = with_timeout(cl.direct_threads, API_TIMEOUT, None, amount=1)
+        threads = cl.direct_threads(amount=1)
         if threads and len(threads) > 0:
             t = threads[0]
             if t.is_group:
@@ -92,7 +85,7 @@ def fetch_thread_id_for_users(cl, user_ids):
     # ─── Method 2: Scan recent threads (limit=5) ──────
     try:
         logger.info(f"🔍 Scanning last {THREAD_SCAN_LIMIT} threads...")
-        threads = with_timeout(cl.direct_threads, API_TIMEOUT, None, amount=THREAD_SCAN_LIMIT)
+        threads = cl.direct_threads(amount=THREAD_SCAN_LIMIT)
         if threads:
             # Sort by last activity (most recent first)
             try:
@@ -131,7 +124,7 @@ def remove_dummy_multi_method(cl, thread_id, dummy_user_id):
     # Method A: direct_remove_user (if available)
     try:
         if hasattr(cl, 'direct_remove_user'):
-            result = with_timeout(cl.direct_remove_user, API_TIMEOUT, None, thread_id, dummy_user_id)
+            result = cl.direct_remove_user(thread_id, dummy_user_id)
             if result is not None:
                 logger.info("✅ Removed via direct_remove_user")
                 return True
@@ -144,7 +137,7 @@ def remove_dummy_multi_method(cl, thread_id, dummy_user_id):
     try:
         url = f"direct_v2/threads/{thread_id}/remove_users/"
         data = {"user_ids": f"[{dummy_user_id}]"}
-        result = with_timeout(cl.private_request, API_TIMEOUT, None, url, data)
+        result = cl.private_request(url, data)
         if result and result.get("status") == "ok":
             logger.info("✅ Removed via private_request")
             return True
@@ -154,7 +147,7 @@ def remove_dummy_multi_method(cl, thread_id, dummy_user_id):
     # Method C: direct_messages.remove_user_from_group
     try:
         if hasattr(cl, 'direct_messages') and hasattr(cl.direct_messages, 'remove_user_from_group'):
-            result = with_timeout(cl.direct_messages.remove_user_from_group, API_TIMEOUT, None, thread_id, dummy_user_id)
+            result = cl.direct_messages.remove_user_from_group(thread_id, dummy_user_id)
             if result is not None:
                 logger.info("✅ Removed via direct_messages.remove_user_from_group")
                 return True
@@ -178,19 +171,20 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
     # Resolve user IDs
     user_ids = []
     for u in usernames:
-        uid = with_timeout(cl.user_id_from_username, API_TIMEOUT, None, u)
-        if uid is None:
-            yield sse_event("error", f"❌ Could not resolve {u}")
+        try:
+            uid = cl.user_id_from_username(u)
+            user_ids.append(uid)
+        except Exception as e:
+            yield sse_event("error", f"❌ Could not resolve {u}: {e}")
             return
-        user_ids.append(uid)
 
     dummy_user_id = None
     if remove_username:
-        dummy_user_id = with_timeout(cl.user_id_from_username, API_TIMEOUT, None, remove_username)
-        if dummy_user_id is None:
-            yield sse_event("warn", f"⚠️ Could not resolve {remove_username}, skipping removal")
-        else:
+        try:
+            dummy_user_id = cl.user_id_from_username(remove_username)
             yield sse_event("success", f"✅ {remove_username} resolved")
+        except Exception as e:
+            yield sse_event("warn", f"⚠️ Could not resolve {remove_username}, skipping removal")
 
     yield sse_event("success", f"✅ {len(user_ids)} users resolved")
 
@@ -199,11 +193,7 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
 
         # ─── Step 1: Send message (creates group) ──────
         try:
-            send_result = with_timeout(cl.direct_send, API_TIMEOUT, None, custom_message, user_ids=user_ids)
-            if send_result is None:
-                yield sse_event("error", f"❌ GC {i} send failed (timeout)")
-                # Still try to remove? No, group might not exist.
-                continue
+            send_result = cl.direct_send(custom_message, user_ids=user_ids)
             yield sse_event("success", f"📤 Message sent for GC {i}")
         except Exception as e:
             yield sse_event("error", f"❌ GC {i} send error: {e}")
@@ -233,8 +223,7 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
             yield sse_event("info", "💡 Group exists, skipping removal (not mandatory)")
 
         # ─── Step 4: Memory cleanup ────────────────────
-        if i % 5 == 0:
-            gc.collect()
+        gc.collect()
 
         # ─── Step 5: Delay ──────────────────────────────
         if i < group_count:
