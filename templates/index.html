@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>GC Creator Pro</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0b0b0e;
+            color: #e8edf5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #15171e;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+        h1 {
+            text-align: center;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #b0c7ff;
+        }
+        label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8892a0;
+            display: block;
+            margin: 15px 0 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 10px 14px;
+            background: #0f1119;
+            border: 1px solid #2a2d3a;
+            border-radius: 8px;
+            color: #e8edf5;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border 0.3s;
+        }
+        input:focus, textarea:focus {
+            border-color: #6b8cff;
+            outline: none;
+        }
+        .row {
+            display: flex;
+            gap: 15px;
+        }
+        .row > div {
+            flex: 1;
+        }
+        button {
+            background: #6b8cff;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 16px;
+            color: #fff;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+            transition: background 0.25s;
+        }
+        button:hover {
+            background: #5570e0;
+        }
+        .log-area {
+            margin-top: 25px;
+            background: #0a0c12;
+            border: 1px solid #1e212b;
+            border-radius: 10px;
+            padding: 15px;
+            max-height: 450px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            color: #b0c7d5;
+        }
+        .log-line {
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .log-line:last-child {
+            border-bottom: none;
+        }
+        .green { color: #4ade80; }
+        .red { color: #ff6b61; }
+        .yellow { color: #fbbf24; }
+        .cyan { color: #67e8f9; }
+        .small {
+            font-size: 11px;
+            color: #5a6a7a;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>⚡ GC Creator Pro</h1>
+    <form method="POST" action="/">
+        <div class="row">
+            <div>
+                <label>Session ID</label>
+                <input type="text" name="session_id" placeholder="optional, uses env if empty" />
+            </div>
+            <div>
+                <label>Group Count</label>
+                <input type="number" name="group_count" value="10" min="1" />
+            </div>
+        </div>
+        <label>Usernames (comma separated)</label>
+        <input type="text" name="usernames" placeholder="user1, user2, user3" required />
+        <label>Username to Remove</label>
+        <input type="text" name="remove_username" placeholder="dummy" required />
+        <label>Message (optional)</label>
+        <textarea name="message" rows="2">𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙ𝐇ɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ</textarea>
+        <button type="submit">🚀 Start Creating GCs</button>
+    </form>
+
+    <div id="logs" class="log-area">
+        <div class="log-line small">⏳ Waiting for your action...</div>
+    </div>
+</div>
+
+<script>
+    // Optional: Auto-scroll logs when streaming
+    (function() {
+        const logDiv = document.getElementById('logs');
+        const observer = new MutationObserver(() => {
+            logDiv.scrollTop = logDiv.scrollHeight;
+        });
+        observer.observe(logDiv, { childList: true, subtree: true });
+    })();
+</script>
+</body>
+</html>
