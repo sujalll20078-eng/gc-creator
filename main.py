@@ -4,6 +4,8 @@ import time
 import json
 import urllib.parse
 import logging
+from concurrent.futures import TimeoutError as FuturesTimeoutError
+import concurrent.futures
 from flask import Flask, request, render_template, Response, stream_with_context
 from instagrapi import Client
 from instagrapi.exceptions import LoginRequired, RateLimitError
@@ -14,6 +16,7 @@ DEFAULT_MESSAGE = "𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ�
 DEFAULT_DELAY = 4
 MIN_DELAY = 2
 ERROR_DELAY = 2
+THREAD_FETCH_TIMEOUT = 10  # seconds
 
 # ─── LOGGING ─────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -44,10 +47,27 @@ def login_session(session_id, name_hint=""):
         return None
 
 def remove_user_from_thread(cl, thread_id, user_id):
-    cl.private.post(
-        f"https://i.instagram.com/api/v1/direct_v2/threads/{thread_id}/remove_users/",
-        data={"user_ids": f"[{user_id}]"}
-    )
+    try:
+        cl.private.post(
+            f"https://i.instagram.com/api/v1/direct_v2/threads/{thread_id}/remove_users/",
+            data={"user_ids": f"[{user_id}]"}
+        )
+        return True
+    except Exception:
+        return False
+
+# ─── FETCH LATEST THREAD WITH TIMEOUT ──────────────────
+def fetch_latest_thread_with_timeout(cl, timeout=THREAD_FETCH_TIMEOUT):
+    """Fetch the most recent thread with a timeout to prevent hanging."""
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(cl.direct_threads, amount=1)
+        try:
+            result = future.result(timeout=timeout)
+            return result[0] if result else None
+        except (FuturesTimeoutError, concurrent.futures.TimeoutError):
+            return None
+        except Exception:
+            return None
 
 # ─── SSE EVENT GENERATOR ─────────────────────────────────
 def sse_event(event_type, message):
@@ -55,9 +75,8 @@ def sse_event(event_type, message):
     data = json.dumps({"type": event_type, "msg": message, "time": timestamp})
     return f"data: {data}\n\n"
 
-# ─── GC CREATION ENGINE (SSE Stream) ────────────────────
+# ─── GC CREATION ENGINE ──────────────────────────────────
 def create_gcs_stream(session_id, group_count, usernames, remove_username, custom_message, delay_seconds):
-    """Generator that yields SSE events with dynamic delay."""
     yield sse_event("info", f"🚀 Initializing GC Creator (delay: {delay_seconds}s per GC)...")
     yield sse_event("info", f"📋 Target Users: {', '.join(usernames)}")
     yield sse_event("info", f"🧹 Dummy: {remove_username}")
@@ -80,20 +99,31 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
         try:
             yield sse_event("info", f"🌼 Creating GC {i}/{group_count}...")
 
-            # Create group & send message
+            # Send message (this creates the group)
             cl.direct_send(custom_message, user_ids=user_ids)
-            time.sleep(delay_seconds)  # 🔥 Dynamic delay from frontend
+            yield sse_event("info", f"📤 Message sent for GC {i}...")
+            time.sleep(3)
 
-            # Get the most recent thread
-            thread = cl.direct_threads(amount=1)[0]
+            # Fetch latest thread with timeout
+            yield sse_event("info", f"🔍 Fetching thread for GC {i}...")
+            thread = fetch_latest_thread_with_timeout(cl)
+
+            if not thread:
+                yield sse_event("warn", f"⚠️ Could not fetch thread for GC {i}, skipping remove.")
+                # Still count as success (group created, just dummy not removed)
+                yield sse_event("success", f"✅ GC {i} Created (could not remove dummy)")
+                time.sleep(delay_seconds)
+                continue
+
             thread_id = thread.id
-            time.sleep(2)
+            yield sse_event("info", f"📋 Thread ID: {thread_id}")
 
             # Remove dummy user
-            remove_user_from_thread(cl, thread_id, remove_user_id)
-            time.sleep(1)
-
-            yield sse_event("success", f"✅ GC {i} Created | Added: {', '.join(usernames)} | Removed: {remove_username}")
+            remove_success = remove_user_from_thread(cl, thread_id, remove_user_id)
+            if remove_success:
+                yield sse_event("success", f"✅ GC {i} Created | Added: {', '.join(usernames)} | Removed: {remove_username}")
+            else:
+                yield sse_event("warn", f"⚠️ GC {i} Created but dummy removal failed")
 
         except LoginRequired:
             yield sse_event("warn", "🔐 Login expired, re-logging...")
@@ -108,10 +138,10 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
             yield sse_event("error", f"❌ Error on GC {i}: {e}")
             time.sleep(ERROR_DELAY)
 
-        # Extra delay between groups (also dynamic, but we already have delay inside loop)
-        # To avoid double delay, we just use the same delay after each GC
+        # Delay between groups (user controlled)
         if i < group_count:
-            time.sleep(delay_seconds)  # extra delay between groups
+            yield sse_event("info", f"⏳ Waiting {delay_seconds}s before next GC...")
+            time.sleep(delay_seconds)
 
     yield sse_event("success", "🎉 All GCs created successfully!")
     yield sse_event("info", "✨ Done.")
@@ -123,7 +153,6 @@ def index():
 
 @app.route("/", methods=["POST"])
 def start_gc():
-    # Get form data
     session_id = request.form.get("session_id", "").strip() or SESSION_ID
     if not session_id:
         return "❌ Session ID required.", 400
@@ -148,16 +177,13 @@ def start_gc():
     if not custom_message:
         custom_message = DEFAULT_MESSAGE
 
-    # 🔥 Dynamic Delay from frontend
     try:
         delay = float(request.form.get("delay", DEFAULT_DELAY))
         if delay < MIN_DELAY:
             delay = MIN_DELAY
-            # Optionally send a warning via logs
     except:
         delay = DEFAULT_DELAY
 
-    # Return SSE stream
     def generate():
         yield from create_gcs_stream(
             session_id,
