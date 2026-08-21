@@ -1,142 +1,512 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>GC Creator Pro</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GC Creator - Pro</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
     <style>
+        /* ─── RESET & BASE ─── */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #0b0b0e;
+            font-family: 'Inter', sans-serif;
+            background: #08080e;
             color: #e8edf5;
-            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             padding: 20px;
+            background-image: radial-gradient(circle at 10% 20%, rgba(108, 142, 255, 0.04) 0%, transparent 50%);
         }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f111a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #2a2d3f; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4a4f6f; }
+
         .container {
-            max-width: 700px;
-            margin: 0 auto;
-            background: #15171e;
-            padding: 30px;
-            border-radius: 16px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            max-width: 1100px;
+            width: 100%;
+            background: rgba(18, 20, 30, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 28px;
+            padding: 30px 35px;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
         }
-        h1 {
-            text-align: center;
-            font-weight: 300;
-            letter-spacing: 2px;
-            color: #b0c7ff;
+
+        /* ─── HEADER ─── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 15px;
         }
-        label {
-            font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #8892a0;
+        .header h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 22px;
+            background: linear-gradient(135deg, #b0c7ff, #6b8cff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 1.5px;
+        }
+        .header .badge {
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 14px;
+            border-radius: 40px;
+            background: rgba(107, 140, 255, 0.15);
+            border: 1px solid rgba(107, 140, 255, 0.2);
+            color: #8aa8ff;
+        }
+
+        /* ─── GRID LAYOUT ─── */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1.8fr;
+            gap: 28px;
+        }
+
+        /* ─── FORM ─── */
+        .form-card {
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 18px;
+            padding: 22px;
+        }
+        .form-group {
+            margin-bottom: 14px;
+        }
+        .form-group label {
             display: block;
-            margin: 15px 0 5px;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #6a7a8e;
+            font-weight: 600;
+            margin-bottom: 4px;
         }
-        input, textarea {
+        .form-group input, .form-group textarea {
             width: 100%;
             padding: 10px 14px;
-            background: #0f1119;
-            border: 1px solid #2a2d3a;
-            border-radius: 8px;
+            background: #0c0e16;
+            border: 1px solid #1e212b;
+            border-radius: 12px;
             color: #e8edf5;
-            font-size: 14px;
-            box-sizing: border-box;
-            transition: border 0.3s;
-        }
-        input:focus, textarea:focus {
-            border-color: #6b8cff;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            transition: border 0.25s, box-shadow 0.25s;
             outline: none;
         }
-        .row {
-            display: flex;
-            gap: 15px;
+        .form-group input:focus, .form-group textarea:focus {
+            border-color: #6b8cff;
+            box-shadow: 0 0 0 3px rgba(107, 140, 255, 0.15);
         }
-        .row > div {
-            flex: 1;
+        .form-group textarea {
+            resize: vertical;
+            min-height: 60px;
         }
-        button {
-            background: #6b8cff;
+        .row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .btn-primary {
+            width: 100%;
+            padding: 13px 20px;
+            background: linear-gradient(135deg, #6b8cff, #8a6cff);
             border: none;
-            padding: 14px 24px;
             border-radius: 40px;
-            font-weight: 600;
-            font-size: 16px;
+            font-weight: 700;
+            font-size: 15px;
             color: #fff;
             cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-family: 'Inter', sans-serif;
+            margin-top: 6px;
+            letter-spacing: 0.5px;
+        }
+        .btn-primary:hover {
+            transform: scale(1.02);
+            box-shadow: 0 8px 30px rgba(107, 140, 255, 0.3);
+        }
+        .btn-primary:disabled {
+            opacity: 0.5;
+            transform: none;
+            cursor: not-allowed;
+        }
+
+        /* ─── LOGS PANEL ─── */
+        .logs-panel {
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            border-radius: 18px;
+            padding: 18px 20px;
+            display: flex;
+            flex-direction: column;
+            min-height: 450px;
+        }
+        .logs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .logs-header span {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6a7a8e;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+        .logs-actions button {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #6a7a8e;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 10px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .logs-actions button:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+        }
+
+        /* ─── STATS BAR ─── */
+        .stats-bar {
+            display: flex;
+            gap: 16px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 8px 12px;
+            border-radius: 40px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.03);
+            flex-wrap: wrap;
+        }
+        .stat-item {
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            color: #6a7a8e;
+        }
+        .stat-item .num {
+            font-weight: 700;
+            font-size: 14px;
+            color: #e8edf5;
+        }
+        .stat-item .num.green { color: #4ade80; }
+        .stat-item .num.red { color: #ff6b61; }
+        .stat-item .num.cyan { color: #67e8f9; }
+
+        /* ─── PROGRESS BAR ─── */
+        .progress-wrap {
             width: 100%;
-            margin-top: 20px;
-            transition: background 0.25s;
-        }
-        button:hover {
-            background: #5570e0;
-        }
-        .log-area {
-            margin-top: 25px;
-            background: #0a0c12;
-            border: 1px solid #1e212b;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
             border-radius: 10px;
-            padding: 15px;
-            max-height: 450px;
+            margin-bottom: 12px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #6b8cff, #8a6cff);
+            border-radius: 10px;
+            transition: width 0.4s ease;
+        }
+
+        /* ─── LOG CONTAINER ─── */
+        .log-container {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 12px;
+            padding: 8px 12px;
+            max-height: 400px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 13px;
-            white-space: pre-wrap;
-            color: #b0c7d5;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            line-height: 1.8;
+            border: 1px solid rgba(255, 255, 255, 0.02);
         }
         .log-line {
-            padding: 3px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.04);
+            padding: 2px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
         }
-        .log-line:last-child {
-            border-bottom: none;
+        .log-time {
+            color: #4a5a6a;
+            font-size: 10px;
+            min-width: 60px;
+            flex-shrink: 0;
+            opacity: 0.6;
         }
-        .green { color: #4ade80; }
-        .red { color: #ff6b61; }
-        .yellow { color: #fbbf24; }
-        .cyan { color: #67e8f9; }
-        .small {
-            font-size: 11px;
-            color: #5a6a7a;
+        .log-msg {
+            flex: 1;
+            word-break: break-word;
+        }
+        .log-type-info .log-msg { color: #67e8f9; }
+        .log-type-success .log-msg { color: #4ade80; }
+        .log-type-error .log-msg { color: #ff6b61; }
+        .log-type-warn .log-msg { color: #fbbf24; }
+        .log-type-info .log-time { color: #67e8f9; opacity: 0.5; }
+        .log-type-success .log-time { color: #4ade80; opacity: 0.5; }
+        .log-type-error .log-time { color: #ff6b61; opacity: 0.5; }
+        .log-type-warn .log-time { color: #fbbf24; opacity: 0.5; }
+
+        .empty-logs {
+            color: #2a3340;
+            text-align: center;
+            padding: 40px 0;
+            font-size: 13px;
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 820px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            .container { padding: 18px; }
+            .row-2 { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 480px) {
+            .header h1 { font-size: 17px; }
+            .logs-header { flex-direction: column; align-items: stretch; gap: 8px; }
+            .stats-bar { gap: 8px; justify-content: center; }
         }
     </style>
 </head>
 <body>
 <div class="container">
-    <h1>⚡ GC Creator Pro</h1>
-    <form method="POST" action="/">
-        <div class="row">
-            <div>
-                <label>Session ID</label>
-                <input type="text" name="session_id" placeholder="optional, uses env if empty" />
+    <div class="header">
+        <h1>⚡ GC CREATOR</h1>
+        <span class="badge">v3 · SSE</span>
+    </div>
+
+    <div class="grid-2">
+        <!-- ─── LEFT: FORM ─── -->
+        <div class="form-card">
+            <form id="gcForm">
+                <div class="form-group">
+                    <label>Session ID</label>
+                    <input type="text" name="session_id" placeholder="Optional (uses env if set)" />
+                </div>
+                <div class="form-group">
+                    <label>Group Count</label>
+                    <input type="number" name="group_count" value="10" min="1" />
+                </div>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Delay (seconds)</label>
+                        <input type="number" name="delay" value="5" min="2" step="0.5" />
+                        <small style="color:#4a5a6a;font-size:9px;">min 2s</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Username to Remove</label>
+                        <input type="text" name="remove_username" placeholder="dummy" required />
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Usernames (comma separated)</label>
+                    <input type="text" name="usernames" placeholder="user1, user2, user3" required />
+                </div>
+                <div class="form-group">
+                    <label>Message (optional)</label>
+                    <textarea name="message" rows="2">𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙ𝐇ɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ</textarea>
+                </div>
+                <button type="submit" class="btn-primary" id="startBtn">🚀 Start Creating GCs</button>
+            </form>
+        </div>
+
+        <!-- ─── RIGHT: LOGS ─── -->
+        <div class="logs-panel">
+            <div class="logs-header">
+                <span>📡 Live Console</span>
+                <div class="logs-actions">
+                    <button id="clearLogsBtn" onclick="clearLogs()">🗑 Clear</button>
+                </div>
             </div>
-            <div>
-                <label>Group Count</label>
-                <input type="number" name="group_count" value="10" min="1" />
+
+            <!-- Stats -->
+            <div class="stats-bar" id="statsBar">
+                <div class="stat-item">🎯 Total: <span class="num" id="statTotal">0</span></div>
+                <div class="stat-item">✅ Success: <span class="num green" id="statSuccess">0</span></div>
+                <div class="stat-item">❌ Failed: <span class="num red" id="statFailed">0</span></div>
+                <div class="stat-item">⏳ Progress: <span class="num cyan" id="statProgress">0%</span></div>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-wrap">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <!-- Logs Container -->
+            <div class="log-container" id="logContainer">
+                <div class="empty-logs" id="emptyLogs">⏳ Waiting for action...</div>
             </div>
         </div>
-        <label>Usernames (comma separated)</label>
-        <input type="text" name="usernames" placeholder="user1, user2, user3" required />
-        <label>Username to Remove</label>
-        <input type="text" name="remove_username" placeholder="dummy" required />
-        <label>Message (optional)</label>
-        <textarea name="message" rows="2">𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙ𝐇ɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ</textarea>
-        <button type="submit">🚀 Start Creating GCs</button>
-    </form>
-
-    <div id="logs" class="log-area">
-        <div class="log-line small">⏳ Waiting for your action...</div>
     </div>
 </div>
 
 <script>
-    // Optional: Auto-scroll logs when streaming
-    (function() {
-        const logDiv = document.getElementById('logs');
-        const observer = new MutationObserver(() => {
-            logDiv.scrollTop = logDiv.scrollHeight;
-        });
-        observer.observe(logDiv, { childList: true, subtree: true });
-    })();
+    // ─── DOM REFS ──────────────────────────────────────────
+    const form = document.getElementById('gcForm');
+    const logContainer = document.getElementById('logContainer');
+    const emptyLogs = document.getElementById('emptyLogs');
+    const startBtn = document.getElementById('startBtn');
+
+    const statTotal = document.getElementById('statTotal');
+    const statSuccess = document.getElementById('statSuccess');
+    const statFailed = document.getElementById('statFailed');
+    const statProgress = document.getElementById('statProgress');
+    const progressBar = document.getElementById('progressBar');
+
+    let totalGCs = 0;
+    let successCount = 0;
+    let failCount = 0;
+    let abortController = null;
+
+    // ─── APPEND LOG ────────────────────────────────────────
+    function appendLog(type, msg, time) {
+        if (emptyLogs) emptyLogs.remove();
+
+        const line = document.createElement('div');
+        line.className = `log-line log-type-${type}`;
+        line.innerHTML = `
+            <span class="log-time">${time || '--:--:--'}</span>
+            <span class="log-msg">${msg}</span>
+        `;
+        logContainer.appendChild(line);
+        logContainer.scrollTop = logContainer.scrollHeight;
+    }
+
+    // ─── CLEAR LOGS ────────────────────────────────────────
+    function clearLogs() {
+        logContainer.innerHTML = '';
+        totalGCs = 0; successCount = 0; failCount = 0;
+        updateStats();
+        progressBar.style.width = '0%';
+        const empty = document.createElement('div');
+        empty.className = 'empty-logs';
+        empty.id = 'emptyLogs';
+        empty.textContent = '⏳ Waiting for action...';
+        logContainer.appendChild(empty);
+        startBtn.disabled = false;
+        startBtn.textContent = '🚀 Start Creating GCs';
+        if (abortController) {
+            abortController.abort();
+            abortController = null;
+        }
+    }
+
+    // ─── UPDATE STATS ──────────────────────────────────────
+    function updateStats() {
+        statTotal.textContent = totalGCs;
+        statSuccess.textContent = successCount;
+        statFailed.textContent = failCount;
+        const pct = totalGCs > 0 ? Math.round(((successCount + failCount) / totalGCs) * 100) : 0;
+        statProgress.textContent = pct + '%';
+        progressBar.style.width = pct + '%';
+    }
+
+    // ─── HANDLE STREAM ─────────────────────────────────────
+    async function handleStream(response) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop();
+
+            for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                    try {
+                        const jsonStr = line.substring(6);
+                        const data = JSON.parse(jsonStr);
+                        appendLog(data.type, data.msg, data.time);
+
+                        // Parse total GCs
+                        if (data.type === 'info') {
+                            const match = data.msg.match(/GC\s+(\d+)\/(\d+)/i);
+                            if (match) {
+                                totalGCs = parseInt(match[2]);
+                                updateStats();
+                            }
+                        }
+                        if (data.type === 'success' && data.msg.includes('GC')) {
+                            successCount++;
+                            updateStats();
+                        }
+                        if (data.type === 'error' && data.msg.includes('GC')) {
+                            failCount++;
+                            updateStats();
+                        }
+                        if (data.type === 'success' && data.msg.includes('All GCs created')) {
+                            startBtn.disabled = false;
+                            startBtn.textContent = '🚀 Start Creating GCs';
+                        }
+                    } catch (e) {}
+                }
+            }
+        }
+        startBtn.disabled = false;
+        startBtn.textContent = '🚀 Start Creating GCs';
+    }
+
+    // ─── FORM SUBMIT ──────────────────────────────────────
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearLogs();
+        startBtn.disabled = true;
+        startBtn.textContent = '⏳ Creating...';
+
+        const formData = new FormData(form);
+
+        try {
+            abortController = new AbortController();
+            const response = await fetch('/', {
+                method: 'POST',
+                body: formData,
+                signal: abortController.signal,
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                appendLog('error', `❌ Server error: ${text}`, new Date().toLocaleTimeString());
+                startBtn.disabled = false;
+                startBtn.textContent = '🚀 Start Creating GCs';
+                return;
+            }
+
+            await handleStream(response);
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                appendLog('warn', '⏹️ Stream aborted.', new Date().toLocaleTimeString());
+            } else {
+                appendLog('error', `❌ Connection error: ${err.message}`, new Date().toLocaleTimeString());
+            }
+            startBtn.disabled = false;
+            startBtn.textContent = '🚀 Start Creating GCs';
+        }
+    });
+
+    // ─── INIT ──────────────────────────────────────────────
+    window.clearLogs = clearLogs;
 </script>
 </body>
 </html>
