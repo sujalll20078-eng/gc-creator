@@ -2,6 +2,7 @@ import os
 import sys
 import time
 import json
+import gc
 import urllib.parse
 import logging
 import concurrent.futures
@@ -19,8 +20,8 @@ SESSION_ID = os.environ.get("SESSION_ID", "")
 DEFAULT_MESSAGE = "𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙ𝐇ɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ"
 DEFAULT_DELAY = 4
 MIN_DELAY = 2
-API_TIMEOUT = 15
-THREAD_SCAN_LIMIT = 30  # last 30 threads scan karenge
+API_TIMEOUT = 20  # seconds (increased for slow Instagram)
+THREAD_SCAN_LIMIT = 30
 
 # ─── LOGGING ─────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -31,9 +32,12 @@ app = Flask(__name__)
 
 # ─── HELPERS ─────────────────────────────────────────────
 def decode_session(session):
-    if not session: return session
-    try: return urllib.parse.unquote(session)
-    except: return session
+    if not session:
+        return session
+    try:
+        return urllib.parse.unquote(session)
+    except:
+        return session
 
 def with_timeout(func, timeout=API_TIMEOUT, default=None, *args, **kwargs):
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
@@ -63,45 +67,32 @@ def login_session(session_id):
 
 # ─── THREAD ID FETCH (ROBUST) ──────────────────────────
 def fetch_thread_id_for_users(cl, user_ids):
-    """
-    Try multiple ways to find the thread ID for the given user_ids.
-    Returns: (thread_id, method_used) or (None, None)
-    """
-    # ─── Method 1: Check recent threads (scan) ──────────
+    # Method 1: Scan recent threads
     try:
-        logger.info("🔍 Scanning last {} threads for matching group...".format(THREAD_SCAN_LIMIT))
+        logger.info(f"🔍 Scanning last {THREAD_SCAN_LIMIT} threads...")
         threads = with_timeout(cl.direct_threads, API_TIMEOUT, [], amount=THREAD_SCAN_LIMIT)
         if threads:
-            # Sort by last activity (most recent first) if possible
-            try:
-                sorted_threads = sorted(threads, key=lambda t: getattr(t, 'last_activity_at', 0), reverse=True)
-            except:
-                sorted_threads = threads
-
+            sorted_threads = sorted(threads, key=lambda t: getattr(t, 'last_activity_at', 0), reverse=True)
             for t in sorted_threads:
                 if not t.is_group:
                     continue
-                # Get user IDs in this thread
                 t_user_ids = []
                 if hasattr(t, 'users'):
                     for u in t.users:
                         t_user_ids.append(u.pk if hasattr(u, 'pk') else int(u))
-                # Check if ALL our target users are in this thread
                 if all(uid in t_user_ids for uid in user_ids):
                     tid = str(t.id)
                     logger.info(f"✅ Found matching thread: {tid}")
                     return tid, "thread_scan"
-            
-            # If exact match not found, take the most recent group thread
             for t in sorted_threads:
                 if t.is_group:
                     tid = str(t.id)
-                    logger.info(f"✅ Using most recent group thread: {tid} (no exact match)")
+                    logger.info(f"✅ Using most recent group thread: {tid}")
                     return tid, "most_recent_group"
     except Exception as e:
         logger.warning(f"⚠️ Thread scan failed: {e}")
 
-    # ─── Method 2: Try direct_threads with limit=1 (old method) ──
+    # Method 2: Latest thread
     try:
         thread = with_timeout(cl.direct_threads, API_TIMEOUT, None, amount=1)
         if thread and len(thread) > 0 and thread[0].is_group:
@@ -118,14 +109,17 @@ def remove_dummy_multi_method(cl, thread_id, dummy_user_id):
     if not thread_id or not dummy_user_id:
         return False
 
-    # Method A: direct_remove_user
-    try:
-        result = with_timeout(cl.direct_remove_user, API_TIMEOUT, None, thread_id, dummy_user_id)
-        if result is not None:
-            logger.info("✅ Removed via direct_remove_user")
-            return True
-    except Exception as e:
-        logger.warning(f"⚠️ direct_remove_user failed: {e}")
+    # Method A: direct_remove_user (if available)
+    if hasattr(cl, 'direct_remove_user'):
+        try:
+            result = with_timeout(cl.direct_remove_user, API_TIMEOUT, None, thread_id, dummy_user_id)
+            if result is not None:
+                logger.info("✅ Removed via direct_remove_user")
+                return True
+        except Exception as e:
+            logger.warning(f"⚠️ direct_remove_user failed: {e}")
+    else:
+        logger.warning("⚠️ direct_remove_user not available")
 
     # Method B: private_request
     try:
@@ -184,7 +178,7 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
     for i in range(1, group_count + 1):
         yield sse_event("info", f"🌼 Creating GC {i}/{group_count}...")
 
-        # ─── Step 1: Send message (creates group) ──────
+        # Step 1: Send message (creates group)
         try:
             send_result = with_timeout(cl.direct_send, API_TIMEOUT, None, custom_message, user_ids=user_ids)
             if send_result is None:
@@ -195,27 +189,30 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
             yield sse_event("error", f"❌ GC {i} send error: {e}")
             continue
 
-        # ─── Step 2: Fetch thread ID ────────────────────
+        # Step 2: Fetch thread ID
         thread_id, method = fetch_thread_id_for_users(cl, user_ids)
 
         if thread_id:
-            yield sse_event("info", f"🔍 Thread found: {thread_id} (via {method})")
+            yield sse_event("info", f"🔍 Thread found: {thread_id[:20]}... (via {method})")
 
-            # ─── Step 3: Remove dummy ──────────────────
+            # Step 3: Remove dummy
             if dummy_user_id:
                 removal_success = remove_dummy_multi_method(cl, thread_id, dummy_user_id)
                 if removal_success:
                     yield sse_event("success", f"🧹 Removed: {remove_username}")
                 else:
-                    yield sse_event("warn", f"⚠️ GC {i} created but dummy NOT removed (all removal methods failed)")
+                    yield sse_event("warn", f"⚠️ GC {i} created but dummy NOT removed")
             else:
-                yield sse_event("warn", f"⚠️ No dummy user to remove")
+                yield sse_event("warn", "⚠️ No dummy user to remove")
         else:
-            # Thread ID not found – still count as success (group exists)
-            yield sse_event("warn", f"⚠️ GC {i} created but thread_id NOT found (dummy not removed)")
-            yield sse_event("info", "💡 Group exists, skipping removal (not mandatory)")
+            yield sse_event("warn", f"⚠️ GC {i} created but thread NOT found (dummy not removed)")
 
-        # ─── Step 4: Delay ──────────────────────────────
+        # Memory cleanup every 5 GCs
+        if i % 5 == 0:
+            gc.collect()
+            yield sse_event("info", "🧹 Memory cleaned")
+
+        # Step 4: Delay
         if i < group_count:
             yield sse_event("info", f"⏳ Waiting {delay_seconds}s...")
             time.sleep(delay_seconds)
