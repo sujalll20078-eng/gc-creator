@@ -291,7 +291,7 @@
 <div class="container">
     <div class="header">
         <h1>⚡ GC CREATOR</h1>
-        <span class="badge">v3 · SSE</span>
+        <span class="badge">v4 · SSE</span>
     </div>
 
     <div class="grid-2">
@@ -323,7 +323,18 @@
                 </div>
                 <div class="form-group">
                     <label>Message (optional)</label>
-                    <textarea name="message" rows="2">𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙ𝐇ɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ</textarea>
+                    <textarea name="message" rows="2">𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙʜɪ𝐘ᴀɴ 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ</textarea>
+                </div>
+                <!-- 🆕 Batch cooldown fields -->
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>Batch Size (GCs)</label>
+                        <input type="number" name="batch_size" value="10" min="1" />
+                    </div>
+                    <div class="form-group">
+                        <label>Batch Cooldown (seconds)</label>
+                        <input type="number" name="batch_cooldown" value="300" min="0" step="1" />
+                    </div>
                 </div>
                 <button type="submit" class="btn-primary" id="startBtn">🚀 Start Creating GCs</button>
             </form>
@@ -442,7 +453,7 @@
 
                         // Parse total GCs
                         if (data.type === 'info') {
-                            const match = data.msg.match(/GC\s+(\d+)\/(\d+)/i);
+                            const match = data.msg.match(/Creating GC\s+(\d+)\/(\d+)/i);
                             if (match) {
                                 totalGCs = parseInt(match[2]);
                                 updateStats();
@@ -456,7 +467,7 @@
                             failCount++;
                             updateStats();
                         }
-                        if (data.type === 'success' && data.msg.includes('All GCs created')) {
+                        if (data.type === 'success' && data.msg.includes('All GCs processed')) {
                             startBtn.disabled = false;
                             startBtn.textContent = '🚀 Start Creating GCs';
                         }
