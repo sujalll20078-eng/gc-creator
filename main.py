@@ -20,8 +20,12 @@ SESSION_ID = os.environ.get("SESSION_ID", "")
 DEFAULT_MESSAGE = "𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙʜɪ𝐘ᴀ𝐍 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ"
 DEFAULT_DELAY = 4
 MIN_DELAY = 2
-API_TIMEOUT = 60          # per-request timeout (seconds)
+API_TIMEOUT = 60
 THREAD_SCAN_LIMIT = 5
+
+# 🆕 Batch cooldown settings
+BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "10"))          # har 10 GC ke baad rukega
+BATCH_COOLDOWN = int(os.environ.get("BATCH_COOLDOWN", "300")) # 5 minute (seconds)
 
 # ─── LOGGING ─────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -61,7 +65,7 @@ def login_session(session_id):
     session_id = decode_session(session_id)
     try:
         cl = Client()
-        cl.timeout = API_TIMEOUT          # set global timeout
+        cl.timeout = API_TIMEOUT
         cl.login_by_sessionid(session_id)
         return cl
     except Exception as e:
@@ -155,11 +159,13 @@ def remove_dummy_multi_method(cl, thread_id, dummy_user_id):
     return False
 
 # ─── MAIN ENGINE ────────────────────────────────────────
-def create_gcs_stream(session_id, group_count, usernames, remove_username, custom_message, delay_seconds):
+def create_gcs_stream(session_id, group_count, usernames, remove_username, custom_message, delay_seconds, batch_size, batch_cooldown):
     yield sse_event("info", f"🚀 Starting GC Creator (delay: {delay_seconds}s)...")
     yield sse_event("info", f"📋 Users: {', '.join(usernames)}")
     yield sse_event("info", f"🧹 Remove: {remove_username}")
     yield sse_event("info", f"🔢 Total: {group_count} GCs")
+    if batch_size > 0:
+        yield sse_event("info", f"🛑 Batch cooldown: after every {batch_size} groups, wait {batch_cooldown}s")
 
     cl = login_session(session_id)
     if not cl:
@@ -219,6 +225,12 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
 
         gc.collect()
 
+        # 🆕 Batch cooldown check (after every batch_size groups, if more groups remain)
+        if batch_size > 0 and i % batch_size == 0 and i < group_count:
+            yield sse_event("info", f"🛑 Batch cooldown: waiting {batch_cooldown}s after {batch_size} groups...")
+            time.sleep(batch_cooldown)
+
+        # Normal delay between groups
         if i < group_count:
             yield sse_event("info", f"⏳ Waiting {delay_seconds}s...")
             time.sleep(delay_seconds)
@@ -263,6 +275,21 @@ def start_gc():
     except:
         delay = DEFAULT_DELAY
 
+    # 🆕 batch settings (from form or use env/defaults)
+    try:
+        batch_size = int(request.form.get("batch_size", BATCH_SIZE))
+        if batch_size < 1:
+            batch_size = BATCH_SIZE
+    except:
+        batch_size = BATCH_SIZE
+
+    try:
+        batch_cooldown = int(request.form.get("batch_cooldown", BATCH_COOLDOWN))
+        if batch_cooldown < 0:
+            batch_cooldown = BATCH_COOLDOWN
+    except:
+        batch_cooldown = BATCH_COOLDOWN
+
     def generate():
         yield from create_gcs_stream(
             session_id,
@@ -270,7 +297,9 @@ def start_gc():
             usernames,
             remove_username,
             custom_message,
-            delay
+            delay,
+            batch_size,
+            batch_cooldown
         )
 
     return Response(generate(), mimetype="text/event-stream")
