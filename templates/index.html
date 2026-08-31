@@ -6,7 +6,6 @@
     <title>GC Creator + Adder Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
     <style>
-        /* ─── RESET & BASE ─── */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', sans-serif;
@@ -194,7 +193,7 @@
             padding: 18px 20px;
             display: flex;
             flex-direction: column;
-            min-height: 450px;
+            min-height: 500px;
         }
         .logs-header {
             display: flex;
@@ -309,10 +308,7 @@
         .hidden { display: none; }
 
         @media (max-width: 820px) {
-            .grid-2 {
-                grid-template-columns: 1fr;
-                gap: 20px;
-            }
+            .grid-2 { grid-template-columns: 1fr; gap: 20px; }
             .container { padding: 18px; }
             .row-2 { grid-template-columns: 1fr; }
         }
@@ -325,7 +321,6 @@
         <span class="badge">v2 · SSE</span>
     </div>
 
-    <!-- Mode Selector -->
     <div class="mode-selector">
         <button class="mode-btn active" id="modeCreateBtn" onclick="setMode('create')">🆕 Create GCs</button>
         <button class="mode-btn" id="modeAddBtn" onclick="setMode('add')">➕ Add Users to GCs</button>
@@ -387,13 +382,19 @@
                         <input type="number" name="delay" value="5" min="2" step="0.5">
                     </div>
                     <div class="form-group">
+                        <label>Add User Delay (seconds)</label>
+                        <input type="number" name="add_user_delay" value="10" min="0">
+                    </div>
+                </div>
+                <div class="row-2">
+                    <div class="form-group">
                         <label>Batch Size</label>
                         <input type="number" name="batch_size" value="10" min="1">
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Batch Cooldown (seconds)</label>
-                    <input type="number" name="batch_cooldown" value="300" min="0">
+                    <div class="form-group">
+                        <label>Batch Cooldown (seconds)</label>
+                        <input type="number" name="batch_cooldown" value="300" min="0">
+                    </div>
                 </div>
 
                 <button type="submit" class="btn-primary" id="startBtn">🚀 Start</button>
@@ -405,10 +406,10 @@
             <div class="logs-header">
                 <span>📡 Live Console</span>
                 <div class="logs-actions">
-                    <button id="clearLogsBtn" onclick="clearLogs()">🗑 Clear</button>
+                    <button onclick="clearLogs()">🗑 Clear</button>
                 </div>
             </div>
-            <div class="stats-bar" id="statsBar">
+            <div class="stats-bar">
                 <div class="stat-item">🎯 Total: <span class="num" id="statTotal">0</span></div>
                 <div class="stat-item">✅ Success: <span class="num green" id="statSuccess">0</span></div>
                 <div class="stat-item">❌ Failed: <span class="num red" id="statFailed">0</span></div>
@@ -429,29 +430,34 @@
     let selectedGroupIds = new Set();
     let totalGCs = 0, successCount = 0, failCount = 0;
 
-    // Mode switching
     function setMode(mode) {
         document.getElementById('modeInput').value = mode;
         document.getElementById('modeCreateBtn').classList.toggle('active', mode === 'create');
         document.getElementById('modeAddBtn').classList.toggle('active', mode === 'add');
         document.getElementById('createFields').classList.toggle('hidden', mode !== 'create');
         document.getElementById('addFields').classList.toggle('hidden', mode !== 'add');
-        // Update button text
-        document.getElementById('startBtn').textContent = mode === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
+        const btn = document.getElementById('startBtn');
+        btn.textContent = mode === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
     }
 
-    // Fetch groups (for add mode)
     async function fetchGroups() {
         const sid = document.querySelector('input[name="session_id"]').value.trim();
         if (!sid) { alert('Enter Session ID first'); return; }
         const statusEl = document.getElementById('fetch-status');
         statusEl.textContent = '⏳ Fetching...';
+        statusEl.style.color = '#ffb340';
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+
         try {
             const res = await fetch('/api/fetch-groups', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({session_id: sid})
+                body: JSON.stringify({session_id: sid}),
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
             const data = await res.json();
             if (data.success) {
                 groups = data.groups;
@@ -464,7 +470,12 @@
                 statusEl.style.color = '#ff6b61';
             }
         } catch(e) {
-            statusEl.textContent = 'Error: ' + e.message;
+            clearTimeout(timeoutId);
+            if (e.name === 'AbortError') {
+                statusEl.textContent = '❌ Timeout (server slow)';
+            } else {
+                statusEl.textContent = '❌ Error: ' + e.message;
+            }
             statusEl.style.color = '#ff6b61';
         }
     }
@@ -496,7 +507,6 @@
         document.getElementById('group_ids').value = Array.from(selectedGroupIds).join(',');
     }
 
-    // Log handling
     function appendLog(type, msg, time) {
         const container = document.getElementById('logContainer');
         const empty = document.getElementById('emptyLogs');
@@ -524,13 +534,13 @@
         document.getElementById('progressBar').style.width = pct + '%';
     }
 
-    // Form submit
     document.getElementById('mainForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         clearLogs();
         const startBtn = document.getElementById('startBtn');
         startBtn.disabled = true;
-        startBtn.textContent = document.getElementById('modeInput').value === 'create' ? '⏳ Creating...' : '⏳ Adding...';
+        const mode = document.getElementById('modeInput').value;
+        startBtn.textContent = mode === 'create' ? '⏳ Creating...' : '⏳ Adding...';
 
         const formData = new FormData(e.target);
         try {
@@ -539,6 +549,7 @@
                 const text = await response.text();
                 appendLog('error', 'Server error: ' + text, new Date().toLocaleTimeString());
                 startBtn.disabled = false;
+                startBtn.textContent = mode === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
                 return;
             }
 
@@ -556,7 +567,6 @@
                         try {
                             const data = JSON.parse(line.substring(6));
                             appendLog(data.type, data.msg, data.time);
-                            // Update stats
                             if (data.type === 'info') {
                                 const match = data.msg.match(/(?:Creating|Processing) GC\s+(\d+)\/(\d+)/i);
                                 if (match) {
@@ -575,15 +585,14 @@
                 });
             }
             startBtn.disabled = false;
-            startBtn.textContent = document.getElementById('modeInput').value === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
+            startBtn.textContent = mode === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
         } catch (err) {
             appendLog('error', 'Connection error: ' + err.message, new Date().toLocaleTimeString());
             startBtn.disabled = false;
-            startBtn.textContent = document.getElementById('modeInput').value === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
+            startBtn.textContent = mode === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
         }
     });
 
-    // Init
     window.clearLogs = clearLogs;
 </script>
 </body>
