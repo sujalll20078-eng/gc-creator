@@ -17,21 +17,21 @@ except ImportError:
 
 # ─── CONFIG ──────────────────────────────────────────────
 SESSION_ID = os.environ.get("SESSION_ID", "")
-DEFAULT_MESSAGE = "𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙʜɪ𝐘ᴀɴ 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ"
+IG_USERNAME = os.environ.get("IG_USERNAME", "")
+IG_PASSWORD = os.environ.get("IG_PASSWORD", "")
+DEFAULT_MESSAGE = "𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀᴏᴏ𝐓ɪ 𝐂ʜᴜᴅ𝐀𝐘𝐈 𝐀ʙʜɪ𝐘ᴀɴ 𝐒ʜᴜʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ"
 DEFAULT_DELAY = 4
 MIN_DELAY = 2
 API_TIMEOUT = 60
 THREAD_SCAN_LIMIT = 5
-
-# 🆕 Batch cooldown settings
 BATCH_SIZE = int(os.environ.get("BATCH_SIZE", "10"))
 BATCH_COOLDOWN = int(os.environ.get("BATCH_COOLDOWN", "300"))
+ADD_USER_DELAY = int(os.environ.get("ADD_USER_DELAY", "10"))
 
 # ─── LOGGING ─────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ─── FLASK APP ────────────────────────────────────────────
 app = Flask(__name__)
 
 # ─── HELPERS ─────────────────────────────────────────────
@@ -59,63 +59,29 @@ def retry_api_call(func, *args, max_retries=2, **kwargs):
             time.sleep(5 * (attempt + 1))
     return None
 
-# ─── LOGIN ──────────────────────────────────────────────
+# ─── LOGIN / RE-LOGIN ────────────────────────────────────
 def login_session(session_id):
     session_id = decode_session(session_id)
     try:
         cl = Client()
         cl.timeout = API_TIMEOUT
-        cl.login_by_sessionid(session_id)
+        if IG_USERNAME and IG_PASSWORD:
+            cl.login(IG_USERNAME, IG_PASSWORD)
+        else:
+            cl.login_by_sessionid(session_id)
         return cl
     except Exception as e:
         logger.error(f"Login failed: {e}")
         return None
 
-# ─── THREAD ID FETCH (for GC Creator) ──────────────────
-def fetch_thread_id_for_users(cl, user_ids):
+def ensure_valid_session(cl, session_id):
+    """Check session validity, re-login if needed."""
     try:
-        threads = retry_api_call(cl.direct_threads, amount=1)
-        if threads and threads[0].is_group:
-            t = threads[0]
-            t_user_ids = [u.pk for u in t.users]
-            if all(uid in t_user_ids for uid in user_ids):
-                return str(t.id), "latest_thread"
-    except:
-        pass
-    try:
-        threads = retry_api_call(cl.direct_threads, amount=THREAD_SCAN_LIMIT)
-        if threads:
-            sorted_threads = sorted(threads, key=lambda t: getattr(t, 'last_activity_at', 0), reverse=True)
-            for t in sorted_threads:
-                if t.is_group:
-                    t_user_ids = [u.pk for u in t.users]
-                    if all(uid in t_user_ids for uid in user_ids):
-                        return str(t.id), "thread_scan"
-            # fallback: most recent group
-            for t in sorted_threads:
-                if t.is_group:
-                    return str(t.id), "most_recent_group"
-    except:
-        pass
-    return None, None
-
-# ─── DUMMY REMOVAL (for GC Creator) ────────────────────
-def remove_dummy_multi_method(cl, thread_id, dummy_user_id):
-    for method in ['direct_remove_user', None]:
-        try:
-            if method and hasattr(cl, method):
-                result = retry_api_call(getattr(cl, method), thread_id, dummy_user_id)
-                if result is not None:
-                    return True
-        except: pass
-    try:
-        url = f"direct_v2/threads/{thread_id}/remove_users/"
-        data = {"user_ids": f"[{dummy_user_id}]"}
-        result = retry_api_call(cl.private_request, url, data)
-        if result and result.get("status") == "ok":
-            return True
-    except: pass
-    return False
+        cl.user_id   # simple API call
+        return cl
+    except Exception:
+        logger.warning("🔄 Session invalid, re-login...")
+        return login_session(session_id)
 
 # ─── FETCH GROUPS (with pagination) ─────────────────────
 def fetch_all_groups(cl, limit=500):
@@ -144,55 +110,96 @@ def fetch_all_groups(cl, limit=500):
             if not has_older or not next_cursor:
                 break
             cursor = next_cursor
-            time.sleep(1)
+            time.sleep(0.5)
         except Exception as e:
             logger.warning(f"Fetch error: {e}")
             break
     return list(dict.fromkeys(all_ids))
 
-# ─── ADD USER (fallback methods) ────────────────────────
-def add_user_to_thread(cl, thread_id, user_id):
-    # Method 1
+# ─── ADD USER (only 2 methods + re-login) ────────────────
+def add_user_to_thread(cl, thread_id, user_id, session_id):
+    """Add user using direct_add_user and private_request only."""
+    # Method 1: direct_add_user
     try:
         if hasattr(cl, 'direct_add_user'):
             result = retry_api_call(cl.direct_add_user, thread_id, user_id)
             if result is not None:
                 return True
-    except: pass
-    # Method 2
+    except Exception:
+        pass
+
+    # Method 2: private_request
     try:
         url = f"direct_v2/threads/{thread_id}/add_user/"
         data = {"user_id": str(user_id)}
         result = retry_api_call(cl.private_request, url, data)
         if result and result.get("status") == "ok":
             return True
-    except: pass
-    # Method 3
-    try:
-        if hasattr(cl, 'direct_messages') and hasattr(cl.direct_messages, 'add_user'):
-            result = retry_api_call(cl.direct_messages.add_user, thread_id, user_id)
-            if result is not None:
+    except Exception:
+        pass
+
+    # Re-login and retry once
+    logger.warning("Add user failed with current session, attempting re-login...")
+    new_cl = ensure_valid_session(cl, session_id)
+    if new_cl:
+        try:
+            if hasattr(new_cl, 'direct_add_user'):
+                result = retry_api_call(new_cl.direct_add_user, thread_id, user_id)
+                if result is not None:
+                    return True
+        except:
+            pass
+        try:
+            url = f"direct_v2/threads/{thread_id}/add_user/"
+            data = {"user_id": str(user_id)}
+            result = retry_api_call(new_cl.private_request, url, data)
+            if result and result.get("status") == "ok":
                 return True
-    except: pass
+        except:
+            pass
     return False
 
-# ─── REMOVE USER (fallback methods) ─────────────────────
-def remove_user_from_thread(cl, thread_id, user_id):
-    # Method 1
+# ─── REMOVE USER (only 2 methods + re-login) ─────────────
+def remove_user_from_thread(cl, thread_id, user_id, session_id):
+    """Remove user using direct_remove_user and private_request only."""
+    # Method 1: direct_remove_user
     try:
         if hasattr(cl, 'direct_remove_user'):
             result = retry_api_call(cl.direct_remove_user, thread_id, user_id)
             if result is not None:
                 return True
-    except: pass
-    # Method 2
+    except:
+        pass
+
+    # Method 2: private_request
     try:
         url = f"direct_v2/threads/{thread_id}/remove_users/"
         data = {"user_ids": f"[{user_id}]"}
         result = retry_api_call(cl.private_request, url, data)
         if result and result.get("status") == "ok":
             return True
-    except: pass
+    except:
+        pass
+
+    # Re-login and retry once
+    logger.warning("Remove user failed, re-login...")
+    new_cl = ensure_valid_session(cl, session_id)
+    if new_cl:
+        try:
+            if hasattr(new_cl, 'direct_remove_user'):
+                result = retry_api_call(new_cl.direct_remove_user, thread_id, user_id)
+                if result is not None:
+                    return True
+        except:
+            pass
+        try:
+            url = f"direct_v2/threads/{thread_id}/remove_users/"
+            data = {"user_ids": f"[{user_id}]"}
+            result = retry_api_call(new_cl.private_request, url, data)
+            if result and result.get("status") == "ok":
+                return True
+        except:
+            pass
     return False
 
 # ─── GC CREATOR ENGINE (existing) ───────────────────────
@@ -214,8 +221,8 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
         try:
             uid = retry_api_call(cl.user_id_from_username, u)
             user_ids.append(uid)
-        except:
-            yield sse_event("error", f"❌ Could not resolve {u}")
+        except Exception as e:
+            yield sse_event("error", f"❌ Could not resolve {u}: {e}")
             return
 
     dummy_user_id = None
@@ -242,10 +249,10 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
         if thread_id:
             yield sse_event("info", f"🔍 Thread found: {thread_id[:10]}... (via {method})")
             if dummy_user_id:
-                if remove_dummy_multi_method(cl, thread_id, dummy_user_id):
+                if remove_user_from_thread(cl, thread_id, dummy_user_id, session_id):
                     yield sse_event("success", f"🧹 Removed: {remove_username}")
                 else:
-                    yield sse_event("warn", f"⚠️ Dummy removal failed")
+                    yield sse_event("warn", "⚠️ Dummy removal failed")
         else:
             yield sse_event("warn", "⚠️ Thread ID not found")
 
@@ -260,9 +267,9 @@ def create_gcs_stream(session_id, group_count, usernames, remove_username, custo
 
     yield sse_event("success", "🎉 All GCs processed!")
 
-# ─── GC ADDER ENGINE (new) ─────────────────────────────
-def add_users_stream(session_id, group_ids, main_users, dummy_users, delay_seconds, batch_size, batch_cooldown):
-    yield sse_event("info", f"🚀 Starting GC Adder (delay: {delay_seconds}s)...")
+# ─── GC ADDER ENGINE ────────────────────────────────────
+def add_users_stream(session_id, group_ids, main_users, dummy_users, delay_seconds, batch_size, batch_cooldown, add_user_delay):
+    yield sse_event("info", f"🚀 Starting GC Adder (delay: {delay_seconds}s, user delay: {add_user_delay}s)...")
     yield sse_event("info", f"👥 Main users: {', '.join(main_users)}")
     yield sse_event("info", f"🧹 Dummy users: {', '.join(dummy_users)}")
     yield sse_event("info", f"🔢 Total groups selected: {len(group_ids)}")
@@ -280,8 +287,8 @@ def add_users_stream(session_id, group_ids, main_users, dummy_users, delay_secon
         try:
             uid = retry_api_call(cl.user_id_from_username, u)
             main_user_ids.append(uid)
-        except:
-            yield sse_event("error", f"❌ Could not resolve main user {u}")
+        except Exception as e:
+            yield sse_event("error", f"❌ Could not resolve main user {u}: {e}")
             return
 
     # Resolve dummy users
@@ -298,25 +305,36 @@ def add_users_stream(session_id, group_ids, main_users, dummy_users, delay_secon
     for idx, thread_id in enumerate(group_ids):
         if not thread_id:
             continue
+
+        # Session check before processing group
+        cl = ensure_valid_session(cl, session_id)
+        if not cl:
+            yield sse_event("error", "❌ Session invalid and re-login failed. Stopping.")
+            return
+
         yield sse_event("info", f"🌼 Processing GC {idx+1}/{len(group_ids)} (thread: {thread_id[:10]}...)")
 
         # Add main users
         for i, uid in enumerate(main_user_ids):
             username = main_users[i]
             yield sse_event("info", f"👤 Adding {username}...")
-            if add_user_to_thread(cl, thread_id, uid):
+            if add_user_to_thread(cl, thread_id, uid, session_id):
                 yield sse_event("success", f"✅ Added {username}")
             else:
                 yield sse_event("error", f"❌ Failed to add {username}")
+            # Delay between each user
+            if add_user_delay > 0:
+                time.sleep(add_user_delay)
 
-        # Remove dummy users (after adding)
+        # Remove dummy users
         for i, uid in enumerate(dummy_user_ids):
             username = dummy_users[i]
             yield sse_event("info", f"🧹 Removing dummy {username}...")
-            if remove_user_from_thread(cl, thread_id, uid):
+            if remove_user_from_thread(cl, thread_id, uid, session_id):
                 yield sse_event("success", f"✅ Removed dummy {username}")
             else:
                 yield sse_event("warn", f"⚠️ Failed to remove dummy {username}")
+            time.sleep(2)   # small delay after removal
 
         gc.collect()
 
@@ -342,7 +360,6 @@ def start():
         return "❌ Session ID required.", 400
 
     if mode == "add":
-        # Get selected group IDs
         group_ids = request.form.get("group_ids", "").split(",") if request.form.get("group_ids") else []
         group_ids = [g.strip() for g in group_ids if g.strip()]
         if not group_ids:
@@ -362,9 +379,10 @@ def start():
 
         batch_size = int(request.form.get("batch_size", BATCH_SIZE))
         batch_cooldown = int(request.form.get("batch_cooldown", BATCH_COOLDOWN))
+        add_user_delay = int(request.form.get("add_user_delay", ADD_USER_DELAY))
 
         def generate():
-            yield from add_users_stream(session_id, group_ids, main_users, dummy_users, delay, batch_size, batch_cooldown)
+            yield from add_users_stream(session_id, group_ids, main_users, dummy_users, delay, batch_size, batch_cooldown, add_user_delay)
 
         return Response(generate(), mimetype="text/event-stream")
 
@@ -387,7 +405,6 @@ def start():
 
         return Response(generate(), mimetype="text/event-stream")
 
-# ─── API: Fetch Groups (for adder mode) ────────────────
 @app.route("/api/fetch-groups", methods=["POST"])
 def fetch_groups_api():
     data = request.json
