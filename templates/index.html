@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GC Creator - Pro</title>
+    <title>GC Creator + Adder Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
     <style>
         /* ─── RESET & BASE ─── */
@@ -25,7 +25,7 @@
         ::-webkit-scrollbar-thumb:hover { background: #4a4f6f; }
 
         .container {
-            max-width: 1100px;
+            max-width: 1200px;
             width: 100%;
             background: rgba(18, 20, 30, 0.85);
             backdrop-filter: blur(20px);
@@ -36,7 +36,6 @@
             box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
         }
 
-        /* ─── HEADER ─── */
         .header {
             display: flex;
             align-items: center;
@@ -55,7 +54,7 @@
             background-clip: text;
             letter-spacing: 1.5px;
         }
-        .header .badge {
+        .badge {
             font-size: 11px;
             font-weight: 600;
             padding: 4px 14px;
@@ -65,14 +64,34 @@
             color: #8aa8ff;
         }
 
-        /* ─── GRID LAYOUT ─── */
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .mode-btn {
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: transparent;
+            color: #aaa;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .mode-btn.active {
+            background: rgba(107,140,255,0.15);
+            border-color: rgba(107,140,255,0.3);
+            color: #fff;
+        }
+
         .grid-2 {
             display: grid;
             grid-template-columns: 1fr 1.8fr;
             gap: 28px;
         }
 
-        /* ─── FORM ─── */
         .form-card {
             background: rgba(0, 0, 0, 0.25);
             border: 1px solid rgba(255, 255, 255, 0.04);
@@ -91,7 +110,7 @@
             font-weight: 600;
             margin-bottom: 4px;
         }
-        .form-group input, .form-group textarea {
+        .form-group input, .form-group textarea, .form-group select {
             width: 100%;
             padding: 10px 14px;
             background: #0c0e16;
@@ -106,10 +125,6 @@
         .form-group input:focus, .form-group textarea:focus {
             border-color: #6b8cff;
             box-shadow: 0 0 0 3px rgba(107, 140, 255, 0.15);
-        }
-        .form-group textarea {
-            resize: vertical;
-            min-height: 60px;
         }
         .row-2 {
             display: grid;
@@ -135,13 +150,43 @@
             transform: scale(1.02);
             box-shadow: 0 8px 30px rgba(107, 140, 255, 0.3);
         }
-        .btn-primary:disabled {
-            opacity: 0.5;
-            transform: none;
-            cursor: not-allowed;
+        .btn-secondary {
+            background: rgba(107,140,255,0.1);
+            border: 1px solid rgba(107,140,255,0.25);
+            color: #8aa8ff;
+            padding: 10px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        .btn-secondary:hover {
+            background: rgba(107,140,255,0.2);
+        }
+        .group-list {
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 8px;
+            margin-top: 8px;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        .group-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 0;
+            font-size: 12px;
+            color: #aaa;
+        }
+        .group-item input[type="checkbox"] {
+            width: 15px;
+            height: 15px;
+            accent-color: #6b8cff;
         }
 
-        /* ─── LOGS PANEL ─── */
         .logs-panel {
             background: rgba(0, 0, 0, 0.35);
             border: 1px solid rgba(255, 255, 255, 0.04);
@@ -173,14 +218,12 @@
             font-size: 10px;
             cursor: pointer;
             transition: 0.2s;
-            font-family: 'Inter', sans-serif;
         }
         .logs-actions button:hover {
             background: rgba(255, 255, 255, 0.08);
             color: #fff;
         }
 
-        /* ─── STATS BAR ─── */
         .stats-bar {
             display: flex;
             gap: 16px;
@@ -203,11 +246,10 @@
             font-size: 14px;
             color: #e8edf5;
         }
-        .stat-item .num.green { color: #4ade80; }
-        .stat-item .num.red { color: #ff6b61; }
-        .stat-item .num.cyan { color: #67e8f9; }
+        .num.green { color: #4ade80; }
+        .num.red { color: #ff6b61; }
+        .num.cyan { color: #67e8f9; }
 
-        /* ─── PROGRESS BAR ─── */
         .progress-wrap {
             width: 100%;
             height: 4px;
@@ -224,7 +266,6 @@
             transition: width 0.4s ease;
         }
 
-        /* ─── LOG CONTAINER ─── */
         .log-container {
             flex: 1;
             background: rgba(0, 0, 0, 0.25);
@@ -259,19 +300,14 @@
         .log-type-success .log-msg { color: #4ade80; }
         .log-type-error .log-msg { color: #ff6b61; }
         .log-type-warn .log-msg { color: #fbbf24; }
-        .log-type-info .log-time { color: #67e8f9; opacity: 0.5; }
-        .log-type-success .log-time { color: #4ade80; opacity: 0.5; }
-        .log-type-error .log-time { color: #ff6b61; opacity: 0.5; }
-        .log-type-warn .log-time { color: #fbbf24; opacity: 0.5; }
-
         .empty-logs {
             color: #2a3340;
             text-align: center;
             padding: 40px 0;
             font-size: 13px;
         }
+        .hidden { display: none; }
 
-        /* ─── RESPONSIVE ─── */
         @media (max-width: 820px) {
             .grid-2 {
                 grid-template-columns: 1fr;
@@ -280,67 +316,91 @@
             .container { padding: 18px; }
             .row-2 { grid-template-columns: 1fr; }
         }
-        @media (max-width: 480px) {
-            .header h1 { font-size: 17px; }
-            .logs-header { flex-direction: column; align-items: stretch; gap: 8px; }
-            .stats-bar { gap: 8px; justify-content: center; }
-        }
     </style>
 </head>
 <body>
 <div class="container">
     <div class="header">
-        <h1>⚡ GC CREATOR</h1>
-        <span class="badge">v4 · SSE</span>
+        <h1>⚡ GC CREATOR + ADDER</h1>
+        <span class="badge">v2 · SSE</span>
+    </div>
+
+    <!-- Mode Selector -->
+    <div class="mode-selector">
+        <button class="mode-btn active" id="modeCreateBtn" onclick="setMode('create')">🆕 Create GCs</button>
+        <button class="mode-btn" id="modeAddBtn" onclick="setMode('add')">➕ Add Users to GCs</button>
     </div>
 
     <div class="grid-2">
-        <!-- ─── LEFT: FORM ─── -->
+        <!-- LEFT: FORM -->
         <div class="form-card">
-            <form id="gcForm">
+            <form id="mainForm">
+                <input type="hidden" name="mode" id="modeInput" value="create">
+
                 <div class="form-group">
                     <label>Session ID</label>
-                    <input type="text" name="session_id" placeholder="Optional (uses env if set)" />
+                    <input type="text" name="session_id" placeholder="Instagram sessionid" required>
                 </div>
-                <div class="form-group">
-                    <label>Group Count</label>
-                    <input type="number" name="group_count" value="10" min="1" />
-                </div>
-                <div class="row-2">
+
+                <!-- Create Mode Fields -->
+                <div id="createFields">
                     <div class="form-group">
-                        <label>Delay (seconds)</label>
-                        <input type="number" name="delay" value="5" min="2" step="0.5" />
-                        <small style="color:#4a5a6a;font-size:9px;">min 2s</small>
+                        <label>Group Count</label>
+                        <input type="number" name="group_count" value="10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Usernames (comma separated)</label>
+                        <input type="text" name="usernames" placeholder="user1, user2, user3">
                     </div>
                     <div class="form-group">
                         <label>Username to Remove</label>
-                        <input type="text" name="remove_username" placeholder="dummy" required />
+                        <input type="text" name="remove_username" placeholder="dummy">
+                    </div>
+                    <div class="form-group">
+                        <label>Message (optional)</label>
+                        <textarea name="message" rows="2">𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀᴏᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙʜɪ𝐘ᴀɴ 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ</textarea>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Usernames (comma separated)</label>
-                    <input type="text" name="usernames" placeholder="user1, user2, user3" required />
+
+                <!-- Add Mode Fields -->
+                <div id="addFields" class="hidden">
+                    <div class="form-group">
+                        <label>Main Users (comma separated)</label>
+                        <input type="text" name="main_users" placeholder="user1, user2">
+                    </div>
+                    <div class="form-group">
+                        <label>Dummy Users (comma separated, optional)</label>
+                        <input type="text" name="dummy_users" placeholder="dummy1, dummy2">
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn-secondary" onclick="fetchGroups()">⚡ Fetch Groups</button>
+                        <div id="fetch-status" style="margin-top:5px; font-size:12px;"></div>
+                        <div class="group-list" id="group-list"></div>
+                    </div>
+                    <input type="hidden" name="group_ids" id="group_ids">
                 </div>
-                <div class="form-group">
-                    <label>Message (optional)</label>
-                    <textarea name="message" rows="2">𝐒ᴏ𝐍ᴀ 𝐔ʀ𝐅 𝐅ʀ𝐎ᴏ𝐓ɪ 𝐂ʜ𝐔ᴅ𝐀𝐘𝐈 𝐀ʙʜɪ𝐘ᴀɴ 𝐒ʜ𝐔ʀ𝐔 𝐁ʏ 𝐀ʏᴀɴ</textarea>
-                </div>
-                <!-- 🆕 Batch cooldown fields -->
+
+                <!-- Common Fields -->
                 <div class="row-2">
                     <div class="form-group">
-                        <label>Batch Size (GCs)</label>
-                        <input type="number" name="batch_size" value="10" min="1" />
+                        <label>Delay (seconds)</label>
+                        <input type="number" name="delay" value="5" min="2" step="0.5">
                     </div>
                     <div class="form-group">
-                        <label>Batch Cooldown (seconds)</label>
-                        <input type="number" name="batch_cooldown" value="300" min="0" step="1" />
+                        <label>Batch Size</label>
+                        <input type="number" name="batch_size" value="10" min="1">
                     </div>
                 </div>
-                <button type="submit" class="btn-primary" id="startBtn">🚀 Start Creating GCs</button>
+                <div class="form-group">
+                    <label>Batch Cooldown (seconds)</label>
+                    <input type="number" name="batch_cooldown" value="300" min="0">
+                </div>
+
+                <button type="submit" class="btn-primary" id="startBtn">🚀 Start</button>
             </form>
         </div>
 
-        <!-- ─── RIGHT: LOGS ─── -->
+        <!-- RIGHT: LOGS -->
         <div class="logs-panel">
             <div class="logs-header">
                 <span>📡 Live Console</span>
@@ -348,21 +408,15 @@
                     <button id="clearLogsBtn" onclick="clearLogs()">🗑 Clear</button>
                 </div>
             </div>
-
-            <!-- Stats -->
             <div class="stats-bar" id="statsBar">
                 <div class="stat-item">🎯 Total: <span class="num" id="statTotal">0</span></div>
                 <div class="stat-item">✅ Success: <span class="num green" id="statSuccess">0</span></div>
                 <div class="stat-item">❌ Failed: <span class="num red" id="statFailed">0</span></div>
                 <div class="stat-item">⏳ Progress: <span class="num cyan" id="statProgress">0%</span></div>
             </div>
-
-            <!-- Progress -->
             <div class="progress-wrap">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
-
-            <!-- Logs Container -->
             <div class="log-container" id="logContainer">
                 <div class="empty-logs" id="emptyLogs">⏳ Waiting for action...</div>
             </div>
@@ -371,152 +425,165 @@
 </div>
 
 <script>
-    // ─── DOM REFS ──────────────────────────────────────────
-    const form = document.getElementById('gcForm');
-    const logContainer = document.getElementById('logContainer');
-    const emptyLogs = document.getElementById('emptyLogs');
-    const startBtn = document.getElementById('startBtn');
+    let groups = [];
+    let selectedGroupIds = new Set();
+    let totalGCs = 0, successCount = 0, failCount = 0;
 
-    const statTotal = document.getElementById('statTotal');
-    const statSuccess = document.getElementById('statSuccess');
-    const statFailed = document.getElementById('statFailed');
-    const statProgress = document.getElementById('statProgress');
-    const progressBar = document.getElementById('progressBar');
+    // Mode switching
+    function setMode(mode) {
+        document.getElementById('modeInput').value = mode;
+        document.getElementById('modeCreateBtn').classList.toggle('active', mode === 'create');
+        document.getElementById('modeAddBtn').classList.toggle('active', mode === 'add');
+        document.getElementById('createFields').classList.toggle('hidden', mode !== 'create');
+        document.getElementById('addFields').classList.toggle('hidden', mode !== 'add');
+        // Update button text
+        document.getElementById('startBtn').textContent = mode === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
+    }
 
-    let totalGCs = 0;
-    let successCount = 0;
-    let failCount = 0;
-    let abortController = null;
+    // Fetch groups (for add mode)
+    async function fetchGroups() {
+        const sid = document.querySelector('input[name="session_id"]').value.trim();
+        if (!sid) { alert('Enter Session ID first'); return; }
+        const statusEl = document.getElementById('fetch-status');
+        statusEl.textContent = '⏳ Fetching...';
+        try {
+            const res = await fetch('/api/fetch-groups', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({session_id: sid})
+            });
+            const data = await res.json();
+            if (data.success) {
+                groups = data.groups;
+                selectedGroupIds = new Set(groups.map(g => g.id));
+                renderGroupList();
+                statusEl.textContent = `✅ ${groups.length} groups found`;
+                statusEl.style.color = '#4ade80';
+            } else {
+                statusEl.textContent = '❌ ' + (data.error || 'Failed');
+                statusEl.style.color = '#ff6b61';
+            }
+        } catch(e) {
+            statusEl.textContent = 'Error: ' + e.message;
+            statusEl.style.color = '#ff6b61';
+        }
+    }
 
-    // ─── APPEND LOG ────────────────────────────────────────
+    function renderGroupList() {
+        const list = document.getElementById('group-list');
+        list.innerHTML = '';
+        groups.forEach(g => {
+            const div = document.createElement('div');
+            div.className = 'group-item';
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = selectedGroupIds.has(g.id);
+            cb.addEventListener('change', () => {
+                if (cb.checked) selectedGroupIds.add(g.id);
+                else selectedGroupIds.delete(g.id);
+                updateGroupIds();
+            });
+            const span = document.createElement('span');
+            span.textContent = `${g.name} (${g.id})`;
+            div.appendChild(cb);
+            div.appendChild(span);
+            list.appendChild(div);
+        });
+        updateGroupIds();
+    }
+
+    function updateGroupIds() {
+        document.getElementById('group_ids').value = Array.from(selectedGroupIds).join(',');
+    }
+
+    // Log handling
     function appendLog(type, msg, time) {
-        if (emptyLogs) emptyLogs.remove();
-
+        const container = document.getElementById('logContainer');
+        const empty = document.getElementById('emptyLogs');
+        if (empty) empty.remove();
         const line = document.createElement('div');
         line.className = `log-line log-type-${type}`;
-        line.innerHTML = `
-            <span class="log-time">${time || '--:--:--'}</span>
-            <span class="log-msg">${msg}</span>
-        `;
-        logContainer.appendChild(line);
-        logContainer.scrollTop = logContainer.scrollHeight;
+        line.innerHTML = `<span class="log-time">${time || '--:--:--'}</span><span class="log-msg">${msg}</span>`;
+        container.appendChild(line);
+        container.scrollTop = container.scrollHeight;
     }
 
-    // ─── CLEAR LOGS ────────────────────────────────────────
     function clearLogs() {
-        logContainer.innerHTML = '';
+        document.getElementById('logContainer').innerHTML = '<div class="empty-logs" id="emptyLogs">⏳ Waiting for action...</div>';
         totalGCs = 0; successCount = 0; failCount = 0;
         updateStats();
-        progressBar.style.width = '0%';
-        const empty = document.createElement('div');
-        empty.className = 'empty-logs';
-        empty.id = 'emptyLogs';
-        empty.textContent = '⏳ Waiting for action...';
-        logContainer.appendChild(empty);
-        startBtn.disabled = false;
-        startBtn.textContent = '🚀 Start Creating GCs';
-        if (abortController) {
-            abortController.abort();
-            abortController = null;
-        }
+        document.getElementById('progressBar').style.width = '0%';
     }
 
-    // ─── UPDATE STATS ──────────────────────────────────────
     function updateStats() {
-        statTotal.textContent = totalGCs;
-        statSuccess.textContent = successCount;
-        statFailed.textContent = failCount;
+        document.getElementById('statTotal').textContent = totalGCs;
+        document.getElementById('statSuccess').textContent = successCount;
+        document.getElementById('statFailed').textContent = failCount;
         const pct = totalGCs > 0 ? Math.round(((successCount + failCount) / totalGCs) * 100) : 0;
-        statProgress.textContent = pct + '%';
-        progressBar.style.width = pct + '%';
+        document.getElementById('statProgress').textContent = pct + '%';
+        document.getElementById('progressBar').style.width = pct + '%';
     }
 
-    // ─── HANDLE STREAM ─────────────────────────────────────
-    async function handleStream(response) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n\n');
-            buffer = lines.pop();
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const jsonStr = line.substring(6);
-                        const data = JSON.parse(jsonStr);
-                        appendLog(data.type, data.msg, data.time);
-
-                        // Parse total GCs
-                        if (data.type === 'info') {
-                            const match = data.msg.match(/Creating GC\s+(\d+)\/(\d+)/i);
-                            if (match) {
-                                totalGCs = parseInt(match[2]);
-                                updateStats();
-                            }
-                        }
-                        if (data.type === 'success' && data.msg.includes('GC')) {
-                            successCount++;
-                            updateStats();
-                        }
-                        if (data.type === 'error' && data.msg.includes('GC')) {
-                            failCount++;
-                            updateStats();
-                        }
-                        if (data.type === 'success' && data.msg.includes('All GCs processed')) {
-                            startBtn.disabled = false;
-                            startBtn.textContent = '🚀 Start Creating GCs';
-                        }
-                    } catch (e) {}
-                }
-            }
-        }
-        startBtn.disabled = false;
-        startBtn.textContent = '🚀 Start Creating GCs';
-    }
-
-    // ─── FORM SUBMIT ──────────────────────────────────────
-    form.addEventListener('submit', async (e) => {
+    // Form submit
+    document.getElementById('mainForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         clearLogs();
+        const startBtn = document.getElementById('startBtn');
         startBtn.disabled = true;
-        startBtn.textContent = '⏳ Creating...';
+        startBtn.textContent = document.getElementById('modeInput').value === 'create' ? '⏳ Creating...' : '⏳ Adding...';
 
-        const formData = new FormData(form);
-
+        const formData = new FormData(e.target);
         try {
-            abortController = new AbortController();
-            const response = await fetch('/', {
-                method: 'POST',
-                body: formData,
-                signal: abortController.signal,
-            });
-
+            const response = await fetch('/', { method: 'POST', body: formData });
             if (!response.ok) {
                 const text = await response.text();
-                appendLog('error', `❌ Server error: ${text}`, new Date().toLocaleTimeString());
+                appendLog('error', 'Server error: ' + text, new Date().toLocaleTimeString());
                 startBtn.disabled = false;
-                startBtn.textContent = '🚀 Start Creating GCs';
                 return;
             }
 
-            await handleStream(response);
-        } catch (err) {
-            if (err.name === 'AbortError') {
-                appendLog('warn', '⏹️ Stream aborted.', new Date().toLocaleTimeString());
-            } else {
-                appendLog('error', `❌ Connection error: ${err.message}`, new Date().toLocaleTimeString());
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            while (true) {
+                const {done, value} = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, {stream: true});
+                const lines = buffer.split('\n\n');
+                buffer = lines.pop();
+                lines.forEach(line => {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            appendLog(data.type, data.msg, data.time);
+                            // Update stats
+                            if (data.type === 'info') {
+                                const match = data.msg.match(/(?:Creating|Processing) GC\s+(\d+)\/(\d+)/i);
+                                if (match) {
+                                    totalGCs = parseInt(match[2]);
+                                    updateStats();
+                                }
+                            } else if (data.type === 'success' && (data.msg.includes('Added') || data.msg.includes('Sent'))) {
+                                successCount++;
+                                updateStats();
+                            } else if (data.type === 'error') {
+                                failCount++;
+                                updateStats();
+                            }
+                        } catch(e) {}
+                    }
+                });
             }
             startBtn.disabled = false;
-            startBtn.textContent = '🚀 Start Creating GCs';
+            startBtn.textContent = document.getElementById('modeInput').value === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
+        } catch (err) {
+            appendLog('error', 'Connection error: ' + err.message, new Date().toLocaleTimeString());
+            startBtn.disabled = false;
+            startBtn.textContent = document.getElementById('modeInput').value === 'create' ? '🚀 Start Creating GCs' : '🚀 Start Adding Users';
         }
     });
 
-    // ─── INIT ──────────────────────────────────────────────
+    // Init
     window.clearLogs = clearLogs;
 </script>
 </body>
